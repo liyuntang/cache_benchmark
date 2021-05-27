@@ -78,7 +78,7 @@ func (r *redisClient)PipelinedRun(cmds []*Cmd) {
 }
 
 func newRedisClient(server string) *redisClient {
-	return &redisClient{redis.NewClient(&redis.Options{Addr: server+":6379", ReadTimeout: -1})}
+	return &redisClient{redis.NewClient(&redis.Options{Addr: "b-mysql-core09:6379", ReadTimeout: -1})}
 }
 
 

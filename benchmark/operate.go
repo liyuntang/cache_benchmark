@@ -1,4 +1,4 @@
-package main
+package benchmark
 
 import (
 	"cache_benchmark/cacheClient"
@@ -8,22 +8,23 @@ import (
 	"time"
 )
 
-func operate(id, count int, ch chan *result) {
-	client := cacheClient.New(typ, server)
+func (b *BenchInfo)operate(id int, ch chan *result) {
+	count := b.Total/b.Threads
+	client := cacheClient.New(b.Typ, b.Server)
 	cmds := make([]*cacheClient.Cmd, 0)
-	valuePrefix := strings.Repeat("a", valueSize)
+	valuePrefix := strings.Repeat("a", b.ValueSize)
 	r := &result{0,0,0, make([]statistic, 0)}
 	for i:=0;i< count;i++ {
 		var tmp int
-		if keyspacelen >0 {
-			tmp = rand.Intn(keyspacelen)
+		if b.Keyspacelen >0 {
+			tmp = rand.Intn(b.Keyspacelen)
 		} else {
 			tmp = id*count + i
 		}
 		key := fmt.Sprintf("%d", tmp)
 		value := fmt.Sprintf("%s%d", valuePrefix, tmp)
-		name := operation
-		if operation == "mixed" {
+		name := b.Operation
+		if b.Operation == "mixed" {
 			if rand.Intn(2) == 1 {
 				name = "set"
 			} else {
@@ -31,9 +32,9 @@ func operate(id, count int, ch chan *result) {
 			}
 		}
 		c := &cacheClient.Cmd{name, key, value, nil}
-		if pipelen > 1 {
+		if b.Pipelen > 1 {
 			cmds = append(cmds, c)
-			if len(cmds) == pipelen {
+			if len(cmds) == b.Pipelen {
 				pipeline(client, cmds, r)
 				cmds = make([]*cacheClient.Cmd, 0)
 			}
