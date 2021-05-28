@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -18,13 +19,16 @@ type tcpClient struct {
 
 func (c *tcpClient)sendGet(key string) {
 	klen := len(key)
-	c.Write([]byte(fmt.Sprintf("G%d %s", klen, key)))
+	tmpReq := fmt.Sprintf("G%d %s", klen, key)
+	fmt.Println(tmpReq, c)
+	c.Write([]byte(tmpReq))
 }
 
 func (c *tcpClient)sendSet(key, value string)  {
 	klen := len(key)
 	vlen := len(value)
-	c.Write([]byte(fmt.Sprintf("S%d %d %s%s", klen, vlen, key, value)))
+	requestData := fmt.Sprintf("S%d %d %s%s", klen, vlen, key, value)
+	c.Write([]byte(requestData))
 }
 
 func (c *tcpClient)sendDel(key string) {
@@ -33,6 +37,13 @@ func (c *tcpClient)sendDel(key string) {
 }
 
 func readLen(r *bufio.Reader) int {
+	fmt.Println("read len go.........................")
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		fmt.Println("read all is bad, err is", err)
+	} else {
+		fmt.Println("buf is", string(buf))
+	}
 	tmp, err := r.ReadString(' ')
 	if err != nil {
 		log.Println(err)
@@ -43,11 +54,15 @@ func readLen(r *bufio.Reader) int {
 		log.Println(tmp, err)
 		return 0
 	}
+	fmt.Println("tmp is", tmp, "l is", l)
 	return l
 }
 
+// 接收对面tcp服务返回的信息
 func (c *tcpClient)recvResponse() (string, error) {
+	fmt.Println("go up>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 	vlen := readLen(c.r)
+	fmt.Println("vlen is", vlen)
 	if vlen == 0 {
 		return "", nil
 	}
@@ -68,12 +83,15 @@ func (c *tcpClient)recvResponse() (string, error) {
 }
 
 func (c *tcpClient)Run(cmd *Cmd) {
+
 	if cmd.Name == "get" {
+		//fmt.Println("tcp get is running...............", cmd, cmd.Key)
 		c.sendGet(cmd.Key)
 		cmd.Value, cmd.Error = c.recvResponse()
 		return
 	}
 	if cmd.Name == "set" {
+		fmt.Println("tcpclient set operation is running...................")
 		c.sendSet(cmd.Key, cmd.Value)
 		_, cmd.Error = c.recvResponse()
 		return
@@ -108,10 +126,14 @@ func (c *tcpClient)PipelinedRun(cmds []*Cmd) {
 }
 
 func newTCPClient(server string) *tcpClient {
-	c, err := net.Dial("tcp", server+":12346")
+	endPoint := fmt.Sprintf("%s:12346", server)
+	//address := fmt.Printf("%s:12346", server)
+	//fmt.Println("new tcp client...............", endPoint)
+	c, err := net.Dial("tcp", endPoint)
 	if err != nil {
 		panic(err)
 	}
+	//fmt.Println("new tcp client is ok", endPoint)
 	r := bufio.NewReader(c)
 	return &tcpClient{c, r}
 }

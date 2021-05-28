@@ -3,7 +3,6 @@ package main
 import (
 	"cache_benchmark/benchmark"
 	"flag"
-	"fmt"
 	"math/rand"
 	"time"
 )
@@ -18,17 +17,18 @@ func init()  {
 	flag.IntVar(&valueSize, "s", 1000, "data size of set/get value in bytes")
 	flag.IntVar(&threads, "t", 1, "number of parallel connections")
 	flag.StringVar(&operation, "o", "set", "test set, could be get/set/mixed")
+	// key的长度，取得是随机数
 	flag.IntVar(&keyspacelen, "k", 0, "key space len, use random keys from 0 to keyspacelen-1")
 	flag.IntVar(&pipelen, "p", 1, "pipeline length")
 	flag.Parse()
-	fmt.Println("type is", typ)
-	fmt.Println("server is", server)
-	fmt.Println("total", total, "requests")
-	fmt.Println("data size is", valueSize)
-	fmt.Println("we have", threads, "connections")
-	fmt.Println("operation is", operation)
-	fmt.Println("keyspacelen is", keyspacelen)
-	fmt.Println("pipeline length is", pipelen)
+	//fmt.Println("type is", typ)
+	//fmt.Println("server is", server)
+	//fmt.Println("total", total, "requests")
+	//fmt.Println("data size is", valueSize)
+	//fmt.Println("we have", threads, "connections")
+	//fmt.Println("operation is", operation)
+	//fmt.Println("keyspacelen is", keyspacelen)
+	//fmt.Println("pipeline length is", pipelen)
 	rand.Seed(time.Now().UnixNano())
 }
 
