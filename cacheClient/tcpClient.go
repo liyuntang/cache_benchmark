@@ -17,6 +17,10 @@ type tcpClient struct {
 	r *bufio.Reader
 }
 
+func (c *tcpClient) Close()  {
+	c.Close()
+}
+
 func (c *tcpClient)sendGet(key string) {
 	klen := len(key)
 	tmpReq := fmt.Sprintf("G%d %s", klen, key)
@@ -27,8 +31,10 @@ func (c *tcpClient)sendGet(key string) {
 func (c *tcpClient)sendSet(key, value string)  {
 	klen := len(key)
 	vlen := len(value)
+	// 这个地方是格式化数据，根据协议的格式进行格式化
 	requestData := fmt.Sprintf("S%d %d %s%s", klen, vlen, key, value)
 	c.Write([]byte(requestData))
+	fmt.Println("set操作发送完成")
 }
 
 func (c *tcpClient)sendDel(key string) {
@@ -39,6 +45,7 @@ func (c *tcpClient)sendDel(key string) {
 func readLen(r *bufio.Reader) int {
 	fmt.Println("read len go.........................")
 	buf, err := ioutil.ReadAll(r)
+	fmt.Println("read all")
 	if err != nil {
 		fmt.Println("read all is bad, err is", err)
 	} else {
@@ -82,8 +89,8 @@ func (c *tcpClient)recvResponse() (string, error) {
 	return string(value), nil
 }
 
+// 单线程压测入口
 func (c *tcpClient)Run(cmd *Cmd) {
-
 	if cmd.Name == "get" {
 		//fmt.Println("tcp get is running...............", cmd, cmd.Key)
 		c.sendGet(cmd.Key)
@@ -93,6 +100,7 @@ func (c *tcpClient)Run(cmd *Cmd) {
 	if cmd.Name == "set" {
 		fmt.Println("tcpclient set operation is running...................")
 		c.sendSet(cmd.Key, cmd.Value)
+		fmt.Println("tcpclient set operation is over")
 		_, cmd.Error = c.recvResponse()
 		return
 	}

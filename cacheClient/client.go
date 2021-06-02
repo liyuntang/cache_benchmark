@@ -10,6 +10,7 @@ type Cmd struct {
 type Client interface {
 	Run(*Cmd)
 	PipelinedRun([]*Cmd)
+	//Close()
 }
 
 func New(typ, server string) Client {

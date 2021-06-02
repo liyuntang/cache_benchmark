@@ -13,13 +13,15 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 	// threads表示启动的线程数量，默认是1
 	// count表示每个线程需要压测的次数
 	count := b.Total/b.Threads
-	client := cacheClient.New(b.Typ, b.Server)
-	fmt.Println("打开连接,type is", b.Typ, "server is", b.Server)
+	//defer client.Close()
+	//fmt.Println("打开连接,type is", b.Typ, "server is", b.Server)
 	cmds := make([]*cacheClient.Cmd, 0)
 	// vaelue以a为前缀,strings.Repeat表示将字符重复多少遍
 	valuePrefix := strings.Repeat("a", b.ValueSize)
 	r := &result{0,0,0, make([]statistic, 0)}
+	// count表示每个线程的运行次数
 	for i:=0;i< count;i++ {
+		client := cacheClient.New(b.Typ, b.Server)
 		//fmt.Println("id is", id, "total is", b.Total, "thread is", b.Threads, "keyspacelen is", b.Keyspacelen, "count is", count, "i is", i)
 		// 取一个随机数据用来生成key
 		var tmp int
@@ -27,13 +29,14 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 			tmp = rand.Intn(b.Keyspacelen)
 		} else {
 			// 这个地方没理解，key的长度为0的话tmp等于啥，但是能保证key不重复
+			// 这个地方生成key的方法挺个性
 			tmp = id*count + i
 		}
 		// 以数字作为key
 		key := fmt.Sprintf("%d", tmp)
 		value := fmt.Sprintf("%s%d", valuePrefix, tmp)
 		name := b.Operation
-
+		// 这个地方作者搞的太牛逼了，如果是mixed模式则随机判断是set操作还是get操作，神了
 		if b.Operation == "mixed" {
 			if rand.Intn(2) == 1 {
 				name = "set"
@@ -42,6 +45,7 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 			}
 		}
 		//fmt.Println("id is", id, "i is", i, "key is", key, "name is", name)
+		// 初始化压测内容
 		c := &cacheClient.Cmd{name, key, value, nil}
 		fmt.Println("压测内容", c)
 		if b.Pipelen > 1 {
@@ -54,11 +58,13 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 				cmds = make([]*cacheClient.Cmd, 0)
 			}
 		} else {
+			// 单线程压测
 			fmt.Println("开始第", i, "次压测")
 			run(client, c, r)
 		}
 	}
 	if len(cmds) != 0 {
+		client := cacheClient.New(b.Typ, b.Server)
 		pipeline(client, cmds, r)
 	}
 	ch <- r
@@ -69,7 +75,9 @@ func run(client cacheClient.Client, c *cacheClient.Cmd, r *result) {
 	// value
 	expect := c.Value
 	start := time.Now()
+	fmt.Println("start run")
 	client.Run(c)
+	fmt.Println("run is over")
 	// 这是个求时间差值的好方法
 	d := time.Now().Sub(start)
 	//fmt.Println("d is", d)

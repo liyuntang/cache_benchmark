@@ -1,6 +1,7 @@
 package cacheClient
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -32,15 +33,17 @@ func (c *httpClient)get(key string) string {
 }
 
 func (c *httpClient)set(key, value string) {
-	req, err := http.NewRequest(http.MethodPut, c.server+key, strings.NewReader(value))
+	url := fmt.Sprintf("%s/%s", c.server, key)
+	fmt.Println("key is", key, "value is", string(value), "url is", url)
+	req, err := http.NewRequest(http.MethodPut, url, strings.NewReader(value))
 	if err != nil {
-		log.Println(key)
+		log.Println("new reques is bad",key)
 		panic(err)
 	}
-
+	defer req.Body.Close()
 	resp, err := c.Do(req)
 	if err != nil {
-		log.Println(key)
+		log.Println("do is bad",key)
 		panic(err)
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -54,6 +57,7 @@ func (c *httpClient)Run(cmd *Cmd)  {
 		return
 	}
 	if cmd.Name == "set" {
+		fmt.Println("http set is running...................")
 		c.set(cmd.Key, cmd.Value)
 		return
 	}
@@ -65,6 +69,9 @@ func newHTTPClient(server string) *httpClient {
 	return &httpClient{client, "http://"+server+":12345/cache"}
 }
 
+func (c *httpClient)Close()  {
+	c.Close()
+}
 func (c *httpClient)PipelinedRun([]*Cmd) {
 	panic("httpClient pipelined run ont implement")
 }

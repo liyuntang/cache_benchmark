@@ -11,6 +11,9 @@ type redisClient struct {
 	*redis.Client
 }
 
+func (r *redisClient)Close()  {
+	r.Close()
+}
 func (r *redisClient)get(key string) (string, error) {
 	res, err := r.Get(ctx, key).Result()
 	if err == redis.Nil {

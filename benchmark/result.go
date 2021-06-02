@@ -38,8 +38,12 @@ func (r *result)addDuration(d time.Duration, typ string) {
 	}
 }
 
+// 统计压测信息的方法
 func (r *result)addResult(src *result) {
+	// statBuckets是result结构体的一个字段，是statist类型的一个切片
+	// 这里遍历statist切片，并对切片内的数据进行处理
 	for b, s := range src.statBuckets {
+		// b是下标号，一个自然数，s是statistic结构体
 		r.addStatistic(b, s)
 	}
 	r.getCount += src.getCount
