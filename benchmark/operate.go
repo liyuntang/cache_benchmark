@@ -13,6 +13,7 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 	// threads表示启动的线程数量，默认是1
 	// count表示每个线程需要压测的次数
 	count := b.Total/b.Threads
+	client := cacheClient.New(b.Typ, b.Server)
 	//defer client.Close()
 	//fmt.Println("打开连接,type is", b.Typ, "server is", b.Server)
 	cmds := make([]*cacheClient.Cmd, 0)
@@ -20,9 +21,8 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 	valuePrefix := strings.Repeat("a", b.ValueSize)
 	r := &result{0,0,0, make([]statistic, 0)}
 	// count表示每个线程的运行次数
-	for i:=0;i< count;i++ {
-		client := cacheClient.New(b.Typ, b.Server)
-		//fmt.Println("id is", id, "total is", b.Total, "thread is", b.Threads, "keyspacelen is", b.Keyspacelen, "count is", count, "i is", i)
+	for i:=0;i<count;i++ {
+		fmt.Println("id is", id, "total is", b.Total, "thread is", b.Threads, "keyspacelen is", b.Keyspacelen, "count is", count, "i is", i)
 		// 取一个随机数据用来生成key
 		var tmp int
 		if b.Keyspacelen >0 {
@@ -64,7 +64,7 @@ func (b *BenchInfo)operate(id int, ch chan *result) {
 		}
 	}
 	if len(cmds) != 0 {
-		client := cacheClient.New(b.Typ, b.Server)
+		//client := cacheClient.New(b.Typ, b.Server)
 		pipeline(client, cmds, r)
 	}
 	ch <- r

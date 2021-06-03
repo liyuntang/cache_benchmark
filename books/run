@@ -1,0 +1,6 @@
+
+
+go run main.go -type tcp -n 10 -k 100 -o set -s 10 -t 1 -p 1
+
+
+

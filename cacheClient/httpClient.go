@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type httpClient struct {
@@ -32,6 +34,10 @@ func (c *httpClient)get(key string) string {
 	return string(buf)
 }
 
+func dialTimeout(network, addr string) (net.Conn, error) {
+	return net.DialTimeout(network, addr, time.Second*1)
+}
+
 func (c *httpClient)set(key, value string) {
 	url := fmt.Sprintf("%s/%s", c.server, key)
 	fmt.Println("key is", key, "value is", string(value), "url is", url)
@@ -40,12 +46,13 @@ func (c *httpClient)set(key, value string) {
 		log.Println("new reques is bad",key)
 		panic(err)
 	}
-	defer req.Body.Close()
+
 	resp, err := c.Do(req)
 	if err != nil {
 		log.Println("do is bad",key)
 		panic(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		panic(resp.Status)
 	}

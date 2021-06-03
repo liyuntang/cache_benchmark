@@ -1,0 +1,128 @@
+参考资料：
+    https://www.cnblogs.com/cobbliu/p/4517598.html
+
+
+
+    我们的一个服务是用Go写的，在测试的时候发现几个小时之后它就会core掉，而且core的时候没有打出任何堆栈信息，简单分析后发现该服务中的几个HTTP服务的连接数不断增长，
+而我们的开发机的fd limit只有1024，当该服务所属进程的连接数增长到系统的fd limit的时候，它被操作系统杀掉了。。。
+    HTTP Connection中连接未被释放的问题在https://groups.google.com/forum/#!topic/golang-nuts/wliZf2_LUag和https://groups.google.com/forum/#!topic/golang-nuts/tACF6RxZ4GQ都有提到。
+这个服务中，我们会定期向一个HTTP服务器发起POST请求，因为请求非常不频繁，所以想采用短连接的方式去做。请求代码大概长这样：
+        func dialTimeout(network, addr string) (net.Conn, error) {
+            return net.DialTimeout(network, addr, time.Second*POST_REMOTE_TIMEOUT)
+        }
+
+        func DoRequest(URL string) xx, error {
+               transport := http.Transport{
+                        Dial:              dialTimeout,
+                }
+
+                client := http.Client{
+                        Transport: &transport,
+                }
+
+                content := RequestContent{}
+                // fill content here
+
+                postStr, err := json.Marshal(content)
+                if err != nil {
+                        return nil, err
+                }
+
+                resp, err := client.Post(URL, "application/json", bytes.NewBuffer(postStr))
+                if err != nil {
+                        return nil, err
+                }
+
+                defer resp.Body.Close()
+                body, err := ioutil.ReadAll(resp.Body)
+                if err != nil {
+                        return nil, err
+                }
+
+                // receive body, handle it
+        }
+
+    运行这段代码一段时间后会发现，该进程下面有一堆ESTABLISHED状态的连接（用lsof -p pid查看某进程下的所有fd），因为每次DoRequest函数被调用后，都会新建一个TCP连接，
+如果对端不先关闭该连接（对端发FIN包）的话，我们这边即便是调用了resp.Body.Close()函数仍然不会改变这些处于ESTABLISHED状态的连接。为什么会这样呢？只有去源代码一探究竟了。
+    Golang的net包中client.go, transport.go, response.go和request.go这几个文件中实现了HTTP Client。当应用层调用client.Do()函数后，transport层会首先找与
+该请求相关的已经缓存的连接（这个缓存是一个map，map的key是请求方法、请求地址和proxy地址，value是一个叫persistConn的连接描述结构），如果已经有可以复用的旧连接，就会在
+这个旧连接上发送和接受该HTTP请求，否则会新建一个TCP连接，然后在这个连接上读写数据。当client接受到整个响应后，如果应用层没有
+    调用response.Body.Close()函数，刚刚传输数据的persistConn就不会被加入到连接缓存中，这样如果您在下次发起HTTP请求的时候，就会重新建立TCP连接，重新分配persistConn结构，
+这是不调用response.Body.Close()的一个副作用。
+    如果不调用response.Body.Close()还存在一个问题。如果请求完成后，对端关闭了连接（对端的HTTP服务器向我发送了FIN），如果这边不调用response.Body.Close()，那么可以看到与
+这个请求相关的TCP连接的状态一直处于CLOSE_WAIT状态（还记得么？CLOSE_WAIT是连接的半开半闭状态，它是收到对方的FIN并且我们也发送了ACK，但是本端还没有发送FIN到对端，如果本段不调用
+close关闭连接，那么连接将一直处于CLOSE_WAIT状态，不会被系统回收）。
+    调用了response.Body.Close()就万无一失了么？上面代码中也调用了body.Close()为什么还会有很多ESTABLISHED状态的连接呢？因为在函数DoRequest()的每次调用中，我们都会新创建
+transport和client结构，当HTTP请求完成并且接收到响应后，如果对端的HTTP服务器没有关闭连接，那么这个连接会一直处于ESTABLISHED状态。如何解呢？有两个方法：
+    第一个方法是用一个全局的client，函数DoRequest()中每次都只在这个全局client上发送数据。但是如果我就想用短连接呢？用方法二。
+    第二个方法是在transport分配时将它的DisableKeepAlives参数置为false，像下面这样：
+        transport := http.Transport{
+                Dial:              dialTimeout,
+                DisableKeepAlives: true,
+        }
+
+        client := http.Client{
+                Transport: &transport,
+        }
+
+    从transport.go:L908可以看到，当应用层调用resp.Body.Close()时，如果DisableKeepAlives被开启，那么transport自动关闭本端连接。而不将它加入到连接缓存中。
+    补充一下，在dialTimeout函数中disable tcp连接的keepalive选项是不可行的，它只是设置TCP连接的选项，不会影响到transport中对连接的控制。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

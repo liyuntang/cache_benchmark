@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -17,9 +16,6 @@ type tcpClient struct {
 	r *bufio.Reader
 }
 
-func (c *tcpClient) Close()  {
-	c.Close()
-}
 
 func (c *tcpClient)sendGet(key string) {
 	klen := len(key)
@@ -33,8 +29,14 @@ func (c *tcpClient)sendSet(key, value string)  {
 	vlen := len(value)
 	// 这个地方是格式化数据，根据协议的格式进行格式化
 	requestData := fmt.Sprintf("S%d %d %s%s", klen, vlen, key, value)
-	c.Write([]byte(requestData))
-	fmt.Println("set操作发送完成")
+	fmt.Println("requestData is", requestData)
+	n, err := c.Write([]byte(requestData))
+	if err != nil {
+		fmt.Println("set操作发送失败，err is", err)
+	} else {
+		fmt.Println("set操作发送完成, n is", n)
+	}
+
 }
 
 func (c *tcpClient)sendDel(key string) {
@@ -43,14 +45,6 @@ func (c *tcpClient)sendDel(key string) {
 }
 
 func readLen(r *bufio.Reader) int {
-	fmt.Println("read len go.........................")
-	buf, err := ioutil.ReadAll(r)
-	fmt.Println("read all")
-	if err != nil {
-		fmt.Println("read all is bad, err is", err)
-	} else {
-		fmt.Println("buf is", string(buf))
-	}
 	tmp, err := r.ReadString(' ')
 	if err != nil {
 		log.Println(err)
@@ -67,7 +61,7 @@ func readLen(r *bufio.Reader) int {
 
 // 接收对面tcp服务返回的信息
 func (c *tcpClient)recvResponse() (string, error) {
-	fmt.Println("go up>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	fmt.Println("receive response >>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 	vlen := readLen(c.r)
 	fmt.Println("vlen is", vlen)
 	if vlen == 0 {
@@ -101,7 +95,8 @@ func (c *tcpClient)Run(cmd *Cmd) {
 		fmt.Println("tcpclient set operation is running...................")
 		c.sendSet(cmd.Key, cmd.Value)
 		fmt.Println("tcpclient set operation is over")
-		_, cmd.Error = c.recvResponse()
+
+		//_, cmd.Error = c.recvResponse()
 		return
 	}
 	if cmd.Name == "del" {
@@ -128,9 +123,9 @@ func (c *tcpClient)PipelinedRun(cmds []*Cmd) {
 			c.sendDel(cmd.Key)
 		}
 	}
-	for _, cmd := range cmds {
-		cmd.Value, cmd.Error = c.recvResponse()
-	}
+	//for _, cmd := range cmds {
+	//	cmd.Value, cmd.Error = c.recvResponse()
+	//}
 }
 
 func newTCPClient(server string) *tcpClient {
